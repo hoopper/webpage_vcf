@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VCF Generator PRO++ Mobile</title>
+    
+    <!-- Enlace al manifiesto para que sea instalable -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Configuración para Android/iOS -->
+    <meta name="theme-color" content="#2563eb">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3771/3771518.png">
+    
+    <!-- Bibliotecas externas -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .card { background: white; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .input-field { @apply w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all mb-3 text-base; }
+        .btn-primary { @apply bg-blue-600 active:scale-95 text-white font-semibold py-4 px-6 rounded-xl transition-all flex items-center justify-center gap-2 w-full shadow-lg shadow-blue-200; }
+        .btn-secondary { @apply bg-slate-100 active:scale-95 text-slate-700 font-medium py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2 mt-2; }
+        .delete-btn { @apply p-3 text-red-500 active:bg-red-50 rounded-lg transition-colors; }
+        .row-item { @apply flex gap-2 items-start mb-3 animate-in fade-in slide-in-from-top-1 duration-200; }
+    </style>
+</head>
+<body class="pb-24">
+
+    <div class="max-w-md mx-auto px-4 pt-6">
+        <!-- Banner de Instalación -->
+        <div id="install-banner" class="hidden bg-blue-600 p-4 rounded-xl mb-6 flex items-center justify-between text-white shadow-lg">
+            <div class="flex items-center gap-3">
+                <i data-lucide="smartphone" class="w-6 h-6"></i>
+                <div>
+                    <p class="text-sm font-bold">Instalar en tu móvil</p>
+                    <p class="text-xs opacity-80">Acceso rápido sin navegador</p>
+                </div>
+            </div>
+            <button id="btn-install" class="bg-white text-blue-600 px-4 py-2 rounded-lg text-xs font-bold uppercase">Añadir</button>
+        </div>
+
+        <!-- Header -->
+        <header class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-800">VCF Gen Pro</h1>
+                <p class="text-slate-500 text-sm">Gestiona tus contactos</p>
+            </div>
+            <div class="p-3 bg-blue-600 text-white rounded-2xl shadow-xl">
+                <i data-lucide="contact-2"></i>
+            </div>
+        </header>
+
+        <!-- Formulario -->
+        <div class="card p-6 mb-6">
+            <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                <i data-lucide="user" class="w-5 h-5 text-blue-500"></i> Identidad
+            </h2>
+            <input id="nombre" placeholder="Nombre" oninput="updateAll()" class="input-field">
+            <input id="apellidos" placeholder="Apellidos" oninput="updateAll()" class="input-field">
+            
+            <h2 class="text-lg font-semibold text-slate-800 mb-4 mt-6 flex items-center gap-2">
+                <i data-lucide="phone" class="w-5 h-5 text-blue-500"></i> Teléfonos
+            </h2>
+            <div id="telefonos"></div>
+            <button onclick="addTelefono()" class="btn-secondary w-full">
+                <i data-lucide="plus" class="w-4 h-4"></i> Añadir Teléfono
+            </button>
+
+            <h2 class="text-lg font-semibold text-slate-800 mb-4 mt-6 flex items-center gap-2">
+                <i data-lucide="mail" class="w-5 h-5 text-blue-500"></i> Correos
+            </h2>
+            <div id="emails"></div>
+            <button onclick="addEmail()" class="btn-secondary w-full">
+                <i data-lucide="plus" class="w-4 h-4"></i> Añadir Email
+            </button>
+        </div>
+
+        <!-- Botón Fijo -->
+        <div class="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-slate-100 z-50">
+            <div class="max-w-md mx-auto">
+                <button onclick="descargarVCF()" class="btn-primary">
+                    <i data-lucide="save"></i> Guardar en el Teléfono
+                </button>
+            </div>
+        </div>
+
+        <!-- QR -->
+        <div class="card p-6 mb-12 flex flex-col items-center">
+            <h2 class="text-lg font-semibold text-slate-800 mb-4">Escanear para compartir</h2>
+            <div id="qrcode" class="bg-white p-2 border rounded-xl mb-4"></div>
+            <p class="text-[10px] text-slate-400 font-mono" id="preview-text"></p>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // Lógica de Instalación (PWA)
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('install-banner').classList.remove('hidden');
+        });
+
+        document.getElementById('btn-install').addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    document.getElementById('install-banner').classList.add('hidden');
+                }
+                deferredPrompt = null;
+            }
+        });
+
+        // Funciones de la aplicación
+        function addTelefono(tipo="CELL", valor=""){
+            const div = document.createElement("div");
+            div.className = "row-item";
+            div.innerHTML = `
+                <select class="w-24 bg-slate-50 border rounded-lg p-3 text-xs" onchange="updateAll()">
+                    <option value="CELL">Móvil</option>
+                    <option value="WORK">Trabajo</option>
+                </select>
+                <input value="${valor}" type="tel" placeholder="Número" oninput="updateAll()" class="w-full px-3 py-3 border rounded-lg text-sm">
+                <button onclick="this.parentElement.remove(); updateAll();" class="delete-btn"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+            `;
+            document.getElementById("telefonos").appendChild(div);
+            lucide.createIcons();
+            updateAll();
+        }
+
+        function addEmail(tipo="INTERNET", valor=""){
+            const div = document.createElement("div");
+            div.className = "row-item";
+            div.innerHTML = `
+                <select class="w-24 bg-slate-50 border rounded-lg p-3 text-xs" onchange="updateAll()">
+                    <option value="INTERNET">Personal</option>
+                    <option value="WORK">Trabajo</option>
+                </select>
+                <input value="${valor}" type="email" placeholder="Email" oninput="updateAll()" class="w-full px-3 py-3 border rounded-lg text-sm">
+                <button onclick="this.parentElement.remove(); updateAll();" class="delete-btn"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+            `;
+            document.getElementById("emails").appendChild(div);
+            lucide.createIcons();
+            updateAll();
+        }
+
+        function generarVCF(){
+            let vcf = "BEGIN:VCARD\nVERSION:3.0\n";
+            const n = document.getElementById("nombre").value;
+            const a = document.getElementById("apellidos").value;
+            if(n || a) {
+                vcf += `N:${a};${n};;;\nFN:${n} ${a}\n`;
+            }
+            document.querySelectorAll("#telefonos .row-item").forEach(r => {
+                const t = r.querySelector('select').value;
+                const v = r.querySelector('input').value;
+                if(v) vcf += `TEL;TYPE=${t}:${v}\n`;
+            });
+            vcf += "END:VCARD";
+            return vcf;
+        }
+
+        function updateAll(){
+            const v = generarVCF();
+            const qr = document.getElementById("qrcode");
+            qr.innerHTML = "";
+            new QRCode(qr, { text: v, width: 180, height: 180 });
+        }
+
+        function descargarVCF(){
+            const blob = new Blob([generarVCF()], {type: "text/vcard"});
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = (document.getElementById("nombre").value || "contacto") + ".vcf";
+            link.click();
+        }
+
+        window.onload = () => { addTelefono(); updateAll(); };
+    </script>
+</body>
+</html>

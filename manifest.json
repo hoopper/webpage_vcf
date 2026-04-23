@@ -1,0 +1,17 @@
+{
+"name": "VCF Generator PRO",
+"short_name": "VCF Gen",
+"description": "Creador de contactos VCF rápido y offline",
+"start_url": "index.html",
+"display": "standalone",
+"background_color": "#f8fafc",
+"theme_color": "#2563eb",
+"icons": [
+{
+"src": "https://www.google.com/search?q=https://cdn-icons-png.flaticon.com/512/3771/3771518.png",
+"sizes": "512x512",
+"type": "image/png",
+"purpose": "any maskable"
+}
+]
+}
